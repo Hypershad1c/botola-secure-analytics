@@ -1,0 +1,5 @@
+id,competition,season,home_team,away_team,date,home_score,away_score
+m-001,Botola Pro,2024/25,Raja CA,Wydad AC,2024-10-01T20:00:00Z,1,0
+m-002,Botola Pro,2024/25,Wydad Casablanca,Raja Casablanca,2024-10-08T20:00:00Z,2,2
+m-003,Botola Pro,2024/25,Raja Club Athletic,Wydad Athletic Club,2024-10-01T20:00:00Z,1,0
+m-004,Botola Pro,2024/25,Raja CA,Raja CA,not-a-date,-1,0

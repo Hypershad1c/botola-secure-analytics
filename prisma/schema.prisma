@@ -1,0 +1,615 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DISABLED
+}
+
+enum IdentityProvider {
+  OAUTH
+  PASSWORD
+  SSO
+}
+
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
+enum SourceKind {
+  FOOTYSTATS_DATASET
+  FOOTYSTATS_API
+  API_FOOTBALL
+  MANUAL
+  SYSTEM
+}
+
+enum IngestionStatus {
+  CREATED
+  DOWNLOADING
+  PARSING
+  VALIDATING
+  IMPORTING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+  CANCELLED
+}
+
+enum RecordStatus {
+  ACCEPTED
+  REJECTED
+  DUPLICATE
+  CONFLICT
+  SKIPPED
+}
+
+enum ConflictStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum CompetitionType {
+  LEAGUE
+  CUP
+  SUPER_CUP
+  FRIENDLY
+  OTHER
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  POSTPONED
+  CANCELLED
+  ABANDONED
+  UNKNOWN
+}
+
+enum MatchEventType {
+  GOAL
+  OWN_GOAL
+  PENALTY_GOAL
+  MISSED_PENALTY
+  YELLOW_CARD
+  SECOND_YELLOW
+  RED_CARD
+  SUBSTITUTION
+  OTHER
+}
+
+enum PlayerPosition {
+  GOALKEEPER
+  DEFENDER
+  MIDFIELDER
+  FORWARD
+  UNKNOWN
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGE
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  TWO_FA_SUCCESS
+  TWO_FA_FAILED
+  PERMISSION_DENIED
+  RATE_LIMITED
+  SUSPICIOUS_REQUEST
+  BLOCKED_IP
+  ADMIN_ACTION
+  API_ABUSE
+}
+
+enum SecuritySeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SecurityAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id                   String          @id @default(uuid()) @db.Uuid
+  email                String?         @unique @db.VarChar(320)
+  displayName          String?         @db.VarChar(160)
+  status               UserStatus      @default(INVITED)
+  lastSignedInAt       DateTime?       @db.Timestamptz(3)
+  createdAt            DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
+  identities           UserIdentity[]
+  sessions             Session[]
+  roles                UserRole[]
+  auditLogs            AuditLog[]      @relation("AuditActor")
+  resolvedConflicts    DataConflict[]  @relation("ConflictResolver")
+  securityEvents       SecurityEvent[]
+  securityAlerts       SecurityAlert[] @relation("AlertAssignee")
+  createdIngestionRuns IngestionRun[]  @relation("IngestionCreator")
+
+  @@index([status])
+  @@map("users")
+}
+
+model UserIdentity {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  provider       IdentityProvider
+  providerUserId String           @db.VarChar(255)
+  email          String?          @db.VarChar(320)
+  passwordHash   String?          @db.VarChar(255)
+  passwordAlgo   String?          @db.VarChar(64)
+  lastUsedAt     DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique @db.VarChar(80)
+  description String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique @db.VarChar(120)
+  description String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId     String   @db.Uuid
+  roleId     String   @db.Uuid
+  assignedAt DateTime @default(now()) @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String           @db.Uuid
+  permissionId String           @db.Uuid
+  effect       PermissionEffect @default(ALLOW)
+  role         Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.VarChar(128)
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String?  @db.Uuid
+  action       String   @db.VarChar(120)
+  resourceType String   @db.VarChar(120)
+  resourceId   String?  @db.VarChar(128)
+  requestId    String?  @db.VarChar(128)
+  metadata     Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  actor        User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model DataSource {
+  id        String         @id @default(uuid()) @db.Uuid
+  code      String         @unique @db.VarChar(80)
+  name      String         @db.VarChar(160)
+  kind      SourceKind
+  baseUrl   String?        @db.VarChar(500)
+  priority  Int            @default(100)
+  isActive  Boolean        @default(true)
+  metadata  Json?
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+  artifacts RawArtifact[]
+  runs      IngestionRun[]
+  conflicts DataConflict[]
+  aliases   EntityAlias[]
+
+  @@index([kind, isActive])
+}
+
+model RawArtifact {
+  id            String         @id @default(uuid()) @db.Uuid
+  sourceId      String         @db.Uuid
+  storageKey    String         @db.VarChar(500)
+  originalName  String?        @db.VarChar(255)
+  contentType   String?        @db.VarChar(120)
+  byteSize      BigInt?
+  sha256        String         @db.Char(64)
+  retrievedAt   DateTime       @db.Timestamptz(3)
+  metadata      Json?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  source        DataSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRuns IngestionRun[]
+
+  @@unique([sourceId, sha256])
+  @@index([sha256])
+}
+
+model IngestionRun {
+  id              String          @id @default(uuid()) @db.Uuid
+  sourceId        String          @db.Uuid
+  artifactId      String?         @db.Uuid
+  createdByUserId String?         @db.Uuid
+  status          IngestionStatus @default(CREATED)
+  datasetName     String          @db.VarChar(160)
+  datasetVersion  String?         @db.VarChar(120)
+  startedAt       DateTime?       @db.Timestamptz(3)
+  completedAt     DateTime?       @db.Timestamptz(3)
+  recordsSeen     Int             @default(0)
+  recordsParsed   Int             @default(0)
+  recordsAccepted Int             @default(0)
+  recordsRejected Int             @default(0)
+  duplicates      Int             @default(0)
+  conflicts       Int             @default(0)
+  errorCount      Int             @default(0)
+  errorSummary    Json?
+  reportKey       String?         @db.VarChar(500)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  source          DataSource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  artifact        RawArtifact?    @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+  createdBy       User?           @relation("IngestionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  records         StagedRecord[]
+  conflictRecords DataConflict[]
+
+  @@index([status, createdAt])
+}
+
+model StagedRecord {
+  id               String       @id @default(uuid()) @db.Uuid
+  ingestionRunId   String       @db.Uuid
+  entityType       String       @db.VarChar(80)
+  sourceRecordId   String?      @db.VarChar(255)
+  rowNumber        Int?
+  payload          Json
+  normalized       Json?
+  status           RecordStatus @default(ACCEPTED)
+  validationErrors Json?
+  canonicalId      String?      @db.Uuid
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+  ingestionRun     IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Cascade)
+
+  @@index([ingestionRunId, entityType, status])
+  @@index([entityType, sourceRecordId])
+}
+
+model DataConflict {
+  id             String         @id @default(uuid()) @db.Uuid
+  ingestionRunId String?        @db.Uuid
+  sourceId       String?        @db.Uuid
+  entityType     String         @db.VarChar(80)
+  canonicalId    String?        @db.Uuid
+  fieldName      String         @db.VarChar(120)
+  existingValue  Json?
+  incomingValue  Json?
+  status         ConflictStatus @default(OPEN)
+  resolvedById   String?        @db.Uuid
+  resolvedAt     DateTime?      @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  ingestionRun   IngestionRun?  @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+  source         DataSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  resolvedBy     User?          @relation("ConflictResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([entityType, canonicalId])
+}
+
+model Competition {
+  id              String          @id @default(uuid()) @db.Uuid
+  canonicalName   String          @unique @db.VarChar(160)
+  countryCode     String?         @db.Char(2)
+  competitionType CompetitionType
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  seasons         Season[]
+  matches         Match[]
+  aliases         EntityAlias[]
+}
+
+model Season {
+  id            String        @id @default(uuid()) @db.Uuid
+  competitionId String        @db.Uuid
+  name          String        @db.VarChar(80)
+  startDate     DateTime?     @db.Date
+  endDate       DateTime?     @db.Date
+  isCurrent     Boolean       @default(false)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  competition   Competition   @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  matches       Match[]
+  standings     Standing[]
+  aliases       EntityAlias[]
+
+  @@unique([competitionId, name])
+}
+
+model Team {
+  id            String          @id @default(uuid()) @db.Uuid
+  canonicalName String          @db.VarChar(160)
+  shortName     String?         @db.VarChar(80)
+  countryCode   String?         @db.Char(2)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  venueId       String?         @db.Uuid
+  venue         Venue?          @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  aliases       EntityAlias[]
+  homeMatches   Match[]         @relation("HomeTeam")
+  awayMatches   Match[]         @relation("AwayTeam")
+  lineups       Lineup[]
+  teamStats     TeamMatchStat[]
+  standings     Standing[]
+
+  @@unique([canonicalName, countryCode])
+  @@index([shortName])
+}
+
+model Player {
+  id            String            @id @default(uuid()) @db.Uuid
+  canonicalName String            @db.VarChar(180)
+  birthDate     DateTime?         @db.Date
+  countryCode   String?           @db.Char(2)
+  position      PlayerPosition    @default(UNKNOWN)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
+  aliases       EntityAlias[]
+  lineupEntries LineupPlayer[]
+  playerStats   PlayerMatchStat[]
+
+  @@index([canonicalName])
+}
+
+model Coach {
+  id            String        @id @default(uuid()) @db.Uuid
+  canonicalName String        @db.VarChar(180)
+  aliases       EntityAlias[]
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+}
+
+model Venue {
+  id            String        @id @default(uuid()) @db.Uuid
+  canonicalName String        @db.VarChar(180)
+  city          String?       @db.VarChar(120)
+  capacity      Int?
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  teams         Team[]
+  matches       Match[]
+  entityAlias   EntityAlias[]
+
+  @@index([canonicalName, city])
+}
+
+model Referee {
+  id            String        @id @default(uuid()) @db.Uuid
+  canonicalName String        @db.VarChar(180)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  matches       Match[]
+  aliases       EntityAlias[]
+}
+
+model EntityAlias {
+  id            String       @id @default(uuid()) @db.Uuid
+  entityType    String       @db.VarChar(80)
+  normalizedKey String       @db.VarChar(220)
+  displayValue  String       @db.VarChar(220)
+  sourceId      String?      @db.Uuid
+  competitionId String?      @db.Uuid
+  seasonId      String?      @db.Uuid
+  teamId        String?      @db.Uuid
+  playerId      String?      @db.Uuid
+  coachId       String?      @db.Uuid
+  refereeId     String?      @db.Uuid
+  venueId       String?      @db.Uuid
+  source        DataSource?  @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  competition   Competition? @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  season        Season?      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  team          Team?        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player        Player?      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  coach         Coach?       @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  referee       Referee?     @relation(fields: [refereeId], references: [id], onDelete: Cascade)
+  venue         Venue?       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([entityType, normalizedKey, sourceId])
+}
+
+model Match {
+  id            String            @id @default(uuid()) @db.Uuid
+  competitionId String            @db.Uuid
+  seasonId      String            @db.Uuid
+  externalKey   String?           @db.VarChar(255)
+  kickoffAt     DateTime?         @db.Timestamptz(3)
+  status        MatchStatus       @default(UNKNOWN)
+  homeTeamId    String            @db.Uuid
+  awayTeamId    String            @db.Uuid
+  homeScore     Int?
+  awayScore     Int?
+  venueId       String?           @db.Uuid
+  refereeId     String?           @db.Uuid
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
+  competition   Competition       @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  season        Season            @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  homeTeam      Team              @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam      Team              @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  venue         Venue?            @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  referee       Referee?          @relation(fields: [refereeId], references: [id], onDelete: SetNull)
+  events        MatchEvent[]
+  lineups       Lineup[]
+  teamStats     TeamMatchStat[]
+  playerStats   PlayerMatchStat[]
+
+  @@index([seasonId, kickoffAt])
+}
+
+model MatchEvent {
+  id          String         @id @default(uuid()) @db.Uuid
+  matchId     String         @db.Uuid
+  externalKey String?        @db.VarChar(255)
+  minute      Int?
+  eventType   MatchEventType
+  teamId      String?        @db.Uuid
+  playerId    String?        @db.Uuid
+  detail      String?        @db.VarChar(255)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  match       Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, externalKey])
+}
+
+model Lineup {
+  id        String         @id @default(uuid()) @db.Uuid
+  matchId   String         @db.Uuid
+  teamId    String         @db.Uuid
+  formation String?        @db.VarChar(40)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  match     Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team      Team           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  players   LineupPlayer[]
+
+  @@unique([matchId, teamId])
+}
+
+model LineupPlayer {
+  id          String         @id @default(uuid()) @db.Uuid
+  lineupId    String         @db.Uuid
+  playerId    String         @db.Uuid
+  position    PlayerPosition @default(UNKNOWN)
+  isStarter   Boolean        @default(false)
+  shirtNumber Int?
+  lineup      Lineup         @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player      Player         @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([lineupId, playerId])
+}
+
+model TeamMatchStat {
+  id            String   @id @default(uuid()) @db.Uuid
+  matchId       String   @db.Uuid
+  teamId        String   @db.Uuid
+  goals         Int?
+  possessionPct Decimal? @db.Decimal(5, 2)
+  shots         Int?
+  shotsOnTarget Int?
+  xg            Decimal? @db.Decimal(8, 4)
+  rawStats      Json?
+  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([matchId, teamId])
+}
+
+model PlayerMatchStat {
+  id       String   @id @default(uuid()) @db.Uuid
+  matchId  String   @db.Uuid
+  playerId String   @db.Uuid
+  teamId   String?  @db.Uuid
+  minutes  Int?
+  goals    Int?
+  assists  Int?
+  xg       Decimal? @db.Decimal(8, 4)
+  rawStats Json?
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([matchId, playerId])
+}
+
+model Standing {
+  id             String @id @default(uuid()) @db.Uuid
+  seasonId       String @db.Uuid
+  teamId         String @db.Uuid
+  position       Int?
+  played         Int    @default(0)
+  wins           Int    @default(0)
+  draws          Int    @default(0)
+  losses         Int    @default(0)
+  goalsFor       Int    @default(0)
+  goalsAgainst   Int    @default(0)
+  goalDifference Int    @default(0)
+  points         Int    @default(0)
+  season         Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  team           Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([seasonId, teamId])
+}
+
+model SecurityEvent {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String?           @db.Uuid
+  type       SecurityEventType
+  severity   SecuritySeverity  @default(INFO)
+  requestId  String?           @db.VarChar(128)
+  route      String?           @db.VarChar(255)
+  metadata   Json?
+  occurredAt DateTime          @default(now()) @db.Timestamptz(3)
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  alerts     SecurityAlert[]
+
+  @@index([type, occurredAt])
+  @@index([severity, occurredAt])
+}
+
+model SecurityAlert {
+  id              String              @id @default(uuid()) @db.Uuid
+  securityEventId String?             @db.Uuid
+  title           String              @db.VarChar(200)
+  description     String?
+  severity        SecuritySeverity
+  status          SecurityAlertStatus @default(OPEN)
+  assignedToId    String?             @db.Uuid
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  resolvedAt      DateTime?
+  securityEvent   SecurityEvent?      @relation(fields: [securityEventId], references: [id], onDelete: SetNull)
+  assignedTo      User?               @relation("AlertAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([status, severity, createdAt])
+}
