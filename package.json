@@ -20,7 +20,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "import:fixture": "tsx scripts/import-fixture.ts",
     "ml:train": "tsx scripts/ml/train-baseline.ts",
-    "db:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts"
+    "db:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts",
+    "verify:production": "tsx scripts/verify-production.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

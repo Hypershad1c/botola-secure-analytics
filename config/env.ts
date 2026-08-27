@@ -14,7 +14,7 @@ const envSchema = z.object({
 export type AppEnv = z.infer<typeof envSchema>;
 
 export function getEnv(): AppEnv {
-  return envSchema.parse({
+  const parsed = envSchema.parse({
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     DATABASE_URL: process.env.DATABASE_URL,
@@ -24,4 +24,7 @@ export function getEnv(): AppEnv {
     OBSERVABILITY_TOKEN: process.env.OBSERVABILITY_TOKEN,
     ALLOW_DEV_ANALYTICS: process.env.ALLOW_DEV_ANALYTICS,
   });
+  if (parsed.NODE_ENV === "production" && parsed.ALLOW_DEV_ANALYTICS) throw new Error("ALLOW_DEV_ANALYTICS must be false in production.");
+  if (parsed.NODE_ENV === "production" && !parsed.OBSERVABILITY_TOKEN) throw new Error("OBSERVABILITY_TOKEN is required in production.");
+  return parsed;
 }
