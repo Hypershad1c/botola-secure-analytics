@@ -7,6 +7,7 @@ const envSchema = z.object({
   AUTH_SESSION_SECRET: z.string().min(32),
   AUTH_COOKIE_NAME: z.string().min(1).default("bsa_session"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  OBSERVABILITY_TOKEN: z.string().min(24).optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -19,5 +20,6 @@ export function getEnv(): AppEnv {
     AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET,
     AUTH_COOKIE_NAME: process.env.AUTH_COOKIE_NAME,
     LOG_LEVEL: process.env.LOG_LEVEL,
+    OBSERVABILITY_TOKEN: process.env.OBSERVABILITY_TOKEN,
   });
 }

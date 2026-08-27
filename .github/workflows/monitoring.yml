@@ -1,0 +1,45 @@
+name: production-monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check liveness
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$APP_URL"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$APP_URL/api/health" > /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+
+      - name: Check readiness
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$APP_URL/api/readiness" > /tmp/readiness.json
+          grep -q '"status":"ready"' /tmp/readiness.json
+
+      - name: Check protected metrics and alert thresholds
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          OBSERVABILITY_TOKEN: ${{ secrets.OBSERVABILITY_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$OBSERVABILITY_TOKEN"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -H "Authorization: Bearer $OBSERVABILITY_TOKEN" \
+            "$APP_URL/api/metrics" > /tmp/metrics.json
+          grep -q '"data"' /tmp/metrics.json
+          if grep -q '"severity":"CRITICAL"' /tmp/metrics.json; then
+            echo "Critical operational alert detected" >&2
+            cat /tmp/metrics.json
+            exit 1
+          fi
