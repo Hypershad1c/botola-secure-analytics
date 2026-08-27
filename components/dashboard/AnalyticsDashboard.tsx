@@ -31,12 +31,18 @@ export function AnalyticsDashboard() {
           <div className="brand-mark">B</div>
           <div><strong>BOTOLA</strong><span>SECURE ANALYTICS</span></div>
         </div>
-        <div className="sidebar-section-label">Workspace</div>
+        <div className="sidebar-section-label">Operations</div>
         <nav className="sidebar-nav" aria-label="Main navigation">
-          <a className="nav-item active" href="#overview"><span className="nav-icon">◈</span>Overview</a>
-          <a className="nav-item" href="#standings"><span className="nav-icon">≡</span>Standings</a>
-          <a className="nav-item" href="#players"><span className="nav-icon">◌</span>Player intelligence</a>
-          <a className="nav-item" href="#security"><span className="nav-icon">⌁</span>Security center</a>
+          <a className="nav-item active" href="/"><span className="nav-icon">⌂</span>Overview</a>
+          <a className="nav-item" href="/teams"><span className="nav-icon">◈</span>Teams</a>
+          <a className="nav-item" href="/compare"><span className="nav-icon">⇄</span>Compare</a>
+          <a className="nav-item" href="/players"><span className="nav-icon">◇</span>Players</a>
+          <a className="nav-item" href="/predictions"><span className="nav-icon">◌</span>Predictions</a>
+          <a className="nav-item" href="/scouting"><span className="nav-icon">◎</span>Scouting</a>
+          <a className="nav-item" href="/data"><span className="nav-icon">▦</span>Data quality</a>
+          <a className="nav-item" href="/reports"><span className="nav-icon">↗</span>Reports</a>
+          <a className="nav-item" href="/security"><span className="nav-icon">⚿</span>Security</a>
+          <a className="nav-item" href="/analyst"><span className="nav-icon">✦</span>AI analyst</a>
         </nav>
         <div className="sidebar-footer">
           <div className="status-dot"><i />Data services ready</div>

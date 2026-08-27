@@ -5,6 +5,7 @@ import { getCompletedMatchesForSeason } from "@/repositories/analytics.repositor
 import { persistModelArtifact } from "@/repositories/ml.repository";
 import { runMatchCsvPipeline } from "@/services/ingestion/pipeline";
 import { persistPipelineResult } from "@/services/ingestion/persistence";
+import { promoteAcceptedMatches } from "@/services/ingestion/promotion";
 import { trainBaselineOutcomeModel } from "@/services/ml/training";
 import { toJobPayload, type JobPayload } from "./queue";
 import type { JobHandlers } from "./worker";
@@ -33,7 +34,8 @@ export function createDefaultWorkerHandlers(db: PrismaClient): JobHandlers {
       const datasetVersion = typeof payload.datasetVersion === "string" ? payload.datasetVersion : undefined;
       const content = await readFile(inputPath);
       const pipeline = runMatchCsvPipeline(content, { sourceCode, datasetName, datasetVersion });
-      await persistPipelineResult(db, { sourceCode, datasetName, datasetVersion, storageKey, pipeline });
+      const persisted = await persistPipelineResult(db, { sourceCode, datasetName, datasetVersion, storageKey, pipeline });
+      await promoteAcceptedMatches(db, persisted.runId);
     },
     ML_TRAINING: async (job) => {
       const payload = toJobPayload(job.payload);

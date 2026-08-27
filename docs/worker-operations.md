@@ -41,3 +41,11 @@ The worker must run with a dedicated database identity limited to the tables and
 ## Explicit external gates
 
 This repository does not claim that a cloud queue, object store, production database, worker host, real football provider, or scheduler has been provisioned. Those steps require operator credentials, service selection, data-source permission, and deployment verification in the target environment.
+
+## Importing a supplied dataset
+
+For a supplied CSV that matches the current bounded match contract, an operator can run `pnpm import:promote <file> <sourceCode> <datasetName> [datasetVersion] [storageKey]`. The command parses and validates the file, persists the raw artifact and staged records, then promotes accepted match rows transactionally into canonical competitions, seasons, teams, aliases, and matches. It is intentionally an operator/worker command, not a browser upload shortcut. Files that use different columns require a source-specific adapter rather than silent guessing.
+
+## Grounded analyst configuration
+
+The AI analyst page is permission-controlled and sends only a bounded season context containing top team and player metrics. It remains disabled unless `AI_API_BASE` and `AI_API_KEY` are configured server-side. `AI_MODEL` selects the provider model. The analyst must report unavailable context instead of inventing live scores, player facts, or unsupported conclusions. Provider selection, key provisioning, retention, and cost controls remain operator decisions.
