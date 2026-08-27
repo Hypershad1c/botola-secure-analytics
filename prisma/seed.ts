@@ -5,6 +5,7 @@ const db = new PrismaClient();
 const permissions = [
   ["football.read", "Read canonical football data"],
   ["football.import", "Run football data imports"],
+  ["football.jobs", "Queue football ingestion and ML jobs"],
   ["security.read", "Read security events and alerts"],
   ["admin.manage_users", "Manage users and roles"],
 ] as const;

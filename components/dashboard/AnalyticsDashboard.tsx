@@ -81,7 +81,7 @@ export function AnalyticsDashboard() {
             <>
               <section className="metric-grid" aria-label="Season summary">
                 <MetricCard label="Teams tracked" value={teams.length} detail="Validated team profiles" accent="teal" />
-                <MetricCard label="Current leader" value={leader ? `${leader.points} pts` : "—"} detail={leader ? `Team ${leader.teamId.slice(0, 8)}…` : "Awaiting data"} accent="amber" />
+                <MetricCard label="Current leader" value={leader ? `${leader.points} pts` : "—"} detail={leader ? `${leader.teamName ?? `Team ${leader.teamId.slice(0, 8)}…`} · ${leader.teamId.slice(0, 8)}…` : "Awaiting data"} accent="amber" />
                 <MetricCard label="Mean Elo" value={averageElo ?? "—"} detail="Sequential rating baseline 1500" accent="blue" />
                 <MetricCard label="Methodology" value={meta?.methodologyVersion ?? "—"} detail="Versioned calculation contract" accent="violet" compact />
               </section>
@@ -112,7 +112,7 @@ export function AnalyticsDashboard() {
                   {players.slice(0, 6).map((player, index) => (
                     <article className="player-card" key={player.playerId}>
                       <div className="player-number">{String(index + 1).padStart(2, "0")}</div>
-                      <div className="player-card-main"><div className="player-id">{player.playerId.slice(0, 12)}…</div><strong>{player.performanceScore ?? "—"}</strong><span>performance score</span></div>
+                      <div className="player-card-main"><div className="player-id">{player.playerName ?? `Player ${player.playerId.slice(0, 8)}…`}</div><strong>{player.performanceScore ?? "—"}</strong><span>performance score</span></div>
                       <div className="player-stats"><span><b>{player.goalsPer90 ?? "—"}</b> G/90</span><span><b>{player.assistsPer90 ?? "—"}</b> A/90</span><span><b>{player.minutes || "—"}</b> min</span></div>
                     </article>
                   ))}
@@ -135,7 +135,7 @@ function PanelHeader({ title, subtitle, action }: { title: string; subtitle: str
 }
 
 function TeamRow({ team, rank }: { team: TeamAnalytics; rank: number }) {
-  return <tr><td><span className={`rank rank-${rank}`}>{rank}</span></td><td><strong className="team-id">{team.teamId.slice(0, 10)}…</strong></td><td><FormPills form={team.form5} /></td><td>{team.matches}</td><td className={team.goalDifference >= 0 ? "positive" : "negative"}>{team.goalDifference > 0 ? "+" : ""}{team.goalDifference}</td><td><strong>{team.points}</strong></td><td><span className="elo-pill">{team.elo}</span></td></tr>;
+  return <tr><td><span className={`rank rank-${rank}`}>{rank}</span></td><td><strong className="team-id">{team.teamName ?? `Team ${team.teamId.slice(0, 8)}…`}</strong><small className="entity-id">{team.teamShortName ?? team.teamId.slice(0, 8)}</small></td><td><FormPills form={team.form5} /></td><td>{team.matches}</td><td className={team.goalDifference >= 0 ? "positive" : "negative"}>{team.goalDifference > 0 ? "+" : ""}{team.goalDifference}</td><td><strong>{team.points}</strong></td><td><span className="elo-pill">{team.elo}</span></td></tr>;
 }
 
 function FormPills({ form }: { form: string }) {
@@ -144,7 +144,7 @@ function FormPills({ form }: { form: string }) {
 
 function SignalRow({ team }: { team: TeamAnalytics }) {
   const strength = team.attackRating === null ? 0 : Math.min(100, Math.max(0, team.attackRating / 2));
-  return <div className="signal-row"><div className="signal-copy"><strong>{team.teamId.slice(0, 12)}…</strong><span>Attack index {team.attackRating ?? "—"}</span></div><div className="signal-bar"><i style={{ width: `${strength}%` }} /></div><b>{team.momentum === null ? "—" : team.momentum > 0 ? `+${team.momentum}` : team.momentum}</b></div>;
+  return <div className="signal-row"><div className="signal-copy"><strong>{team.teamName ?? `Team ${team.teamId.slice(0, 8)}…`}</strong><span>Attack index {team.attackRating ?? "—"}</span></div><div className="signal-bar"><i style={{ width: `${strength}%` }} /></div><b>{team.momentum === null ? "—" : team.momentum > 0 ? `+${team.momentum}` : team.momentum}</b></div>;
 }
 
 function LoadingState() {

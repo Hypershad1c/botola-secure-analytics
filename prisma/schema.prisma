@@ -129,6 +129,27 @@ enum SecurityAlertStatus {
   DISMISSED
 }
 
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+  CANCELLED
+}
+
+enum JobKind {
+  INGESTION
+  ML_TRAINING
+  PREDICTION_REFRESH
+}
+
+enum ObservabilityEventKind {
+  REQUEST
+  ERROR
+  ALERT
+}
+
 enum ModelStatus {
   TRAINING
   VALIDATED
@@ -595,6 +616,58 @@ model Standing {
   team           Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
 
   @@unique([seasonId, teamId])
+}
+
+model ObservabilityEvent {
+  id          String                 @id @default(uuid()) @db.Uuid
+  kind        ObservabilityEventKind
+  severity    SecuritySeverity       @default(INFO)
+  requestId   String?                @db.VarChar(128)
+  route       String?                @db.VarChar(240)
+  fingerprint String?                @db.VarChar(128)
+  message     String                 @db.VarChar(500)
+  context     Json?
+  occurredAt  DateTime               @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime               @default(now()) @db.Timestamptz(3)
+
+  @@index([kind, occurredAt])
+  @@index([severity, occurredAt])
+  @@index([fingerprint, occurredAt])
+}
+
+model ObservabilityMetricSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  capturedAt    DateTime @db.Timestamptz(3)
+  uptimeSeconds Int
+  totalRequests Int
+  errorRequests Int
+  errorRate     Decimal  @db.Decimal(10, 6)
+  p95DurationMs Int
+  totalErrors   Int
+  recentErrors  Int
+  byRoute       Json
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([capturedAt])
+}
+
+model Job {
+  id             String    @id @default(uuid()) @db.Uuid
+  kind           JobKind
+  status         JobStatus @default(QUEUED)
+  idempotencyKey String    @unique @db.VarChar(180)
+  payload        Json
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3)
+  scheduledFor   DateTime  @default(now()) @db.Timestamptz(3)
+  lockedAt       DateTime? @db.Timestamptz(3)
+  completedAt    DateTime? @db.Timestamptz(3)
+  lastError      String?   @db.VarChar(2000)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status, scheduledFor])
+  @@index([kind, createdAt])
 }
 
 model ModelVersion {

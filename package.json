@@ -20,10 +20,12 @@
     "db:seed": "tsx prisma/seed.ts",
     "import:fixture": "tsx scripts/import-fixture.ts",
     "ml:train": "tsx scripts/ml/train-baseline.ts",
+    "jobs:worker:once": "tsx scripts/jobs/worker-once.ts",
     "db:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts",
     "verify:production": "tsx scripts/verify-production.ts"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
     "@prisma/client": "^6.19.0",
     "next": "^15.5.0",
     "react": "^19.1.0",

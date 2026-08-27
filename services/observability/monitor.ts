@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { log, redact } from "./logger";
+import { persistErrorEvent } from "./sink";
 import type { ErrorEvent, LogContext, MetricSnapshot, OperationalAlert, RequestMetric } from "./types";
 
 const startedAt = Date.now();
@@ -24,6 +25,7 @@ export function captureError(error: unknown, context: LogContext = {}): ErrorEve
   errors.push(event);
   if (errors.length > MAX_ERRORS) errors.shift();
   log("error", "application error captured", { ...context, errorId: event.id, fingerprint, errorName: event.name, errorMessage: event.message });
+  persistErrorEvent(event);
   return event;
 }
 

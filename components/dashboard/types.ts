@@ -1,6 +1,8 @@
 export type TeamAnalytics = {
   seasonId: string;
   teamId: string;
+  teamName?: string;
+  teamShortName?: string | null;
   matches: number;
   wins: number;
   draws: number;
@@ -29,6 +31,8 @@ export type TeamAnalytics = {
 export type PlayerAnalytics = {
   seasonId: string;
   playerId: string;
+  playerName?: string;
+  playerTeamName?: string | null;
   matches: number;
   starts: number | null;
   minutes: number;
