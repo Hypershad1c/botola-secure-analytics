@@ -19,7 +19,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "import:fixture": "tsx scripts/import-fixture.ts",
-    "ml:train": "tsx scripts/ml/train-baseline.ts"
+    "ml:train": "tsx scripts/ml/train-baseline.ts",
+    "db:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

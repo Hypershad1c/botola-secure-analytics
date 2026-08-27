@@ -1,15 +1,23 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useDashboardData } from "./use-dashboard-data";
+import { useSeasonOptions } from "./use-season-options";
 import type { TeamAnalytics } from "./types";
 
 export function AnalyticsDashboard() {
   const [seasonId, setSeasonId] = useState("");
   const [inputValue, setInputValue] = useState("");
   const { teams, players, meta, loading, error, refresh } = useDashboardData(seasonId);
+  const { seasons, loading: seasonsLoading, error: seasonsError } = useSeasonOptions();
   const leader = teams[0];
   const averageElo = useMemo(() => teams.length ? Math.round(teams.reduce((sum, team) => sum + team.elo, 0) / teams.length) : null, [teams]);
+  useEffect(() => {
+    if (!seasonId && seasons[0]) {
+      setSeasonId(seasons[0].id);
+      setInputValue(seasons[0].id);
+    }
+  }, [seasonId, seasons]);
 
   function submitSeason(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,10 +60,16 @@ export function AnalyticsDashboard() {
             <form className="season-form" onSubmit={submitSeason}>
               <label htmlFor="seasonId">Season ID</label>
               <div className="season-input-row">
-                <input id="seasonId" value={inputValue} onChange={(event) => setInputValue(event.target.value)} placeholder="UUID from the data workspace" aria-describedby="season-help" />
+                <select className="season-select" aria-label="Current persisted season" value={seasonId} onChange={(event) => { setSeasonId(event.target.value); setInputValue(event.target.value); }}>
+                  <option value="">{seasonsLoading ? "Discovering seasons…" : "Select persisted season"}</option>
+                  {seasons.map((season) => <option key={season.id} value={season.id}>{season.competition.canonicalName} · {season.name}</option>)}
+                </select>
                 <button type="submit">Load season</button>
               </div>
-              <span id="season-help">Analytics are protected and sourced from completed, validated matches.</span>
+              <div className="season-input-row manual-season-row">
+                <input id="seasonId" value={inputValue} onChange={(event) => setInputValue(event.target.value)} placeholder="Or paste a season UUID" aria-describedby="season-help" />
+              </div>
+              <span id="season-help">{seasonsError ? "Season discovery is unavailable; paste a UUID or check authentication." : "Analytics are protected and sourced from completed, validated matches."}</span>
             </form>
           </section>
 
