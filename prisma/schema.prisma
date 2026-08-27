@@ -129,6 +129,19 @@ enum SecurityAlertStatus {
   DISMISSED
 }
 
+enum ModelStatus {
+  TRAINING
+  VALIDATED
+  PRODUCTION
+  RETIRED
+}
+
+enum PredictionTarget {
+  MATCH_OUTCOME
+  HOME_GOALS
+  AWAY_GOALS
+}
+
 model User {
   id                   String          @id @default(uuid()) @db.Uuid
   email                String?         @unique @db.VarChar(320)
@@ -368,6 +381,7 @@ model Season {
   matches       Match[]
   standings     Standing[]
   aliases       EntityAlias[]
+  predictions   Prediction[]
 
   @@unique([competitionId, name])
 }
@@ -486,6 +500,7 @@ model Match {
   lineups       Lineup[]
   teamStats     TeamMatchStat[]
   playerStats   PlayerMatchStat[]
+  predictions   Prediction[]
 
   @@index([seasonId, kickoffAt])
 }
@@ -580,6 +595,61 @@ model Standing {
   team           Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
 
   @@unique([seasonId, teamId])
+}
+
+model ModelVersion {
+  id                   String           @id @default(uuid()) @db.Uuid
+  modelKey             String           @db.VarChar(120)
+  version              String           @db.VarChar(80)
+  status               ModelStatus      @default(TRAINING)
+  target               PredictionTarget
+  featureSchemaVersion String           @db.VarChar(80)
+  trainingDatasetHash  String           @db.Char(64)
+  hyperparameters      Json
+  metrics              Json
+  artifactKey          String?          @db.VarChar(500)
+  trainedAt            DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  predictions          Prediction[]
+
+  @@unique([modelKey, version])
+  @@index([status, target])
+}
+
+model Prediction {
+  id                String            @id @default(uuid()) @db.Uuid
+  modelVersionId    String            @db.Uuid
+  matchId           String?           @db.Uuid
+  seasonId          String?           @db.Uuid
+  homeTeamId        String            @db.Uuid
+  awayTeamId        String            @db.Uuid
+  homeWinProb       Decimal?          @db.Decimal(8, 6)
+  drawProb          Decimal?          @db.Decimal(8, 6)
+  awayWinProb       Decimal?          @db.Decimal(8, 6)
+  expectedHomeGoals Decimal?          @db.Decimal(8, 4)
+  expectedAwayGoals Decimal?          @db.Decimal(8, 4)
+  confidence        Decimal?          @db.Decimal(8, 6)
+  features          Json
+  predictedAt       DateTime          @default(now()) @db.Timestamptz(3)
+  modelVersion      ModelVersion      @relation(fields: [modelVersionId], references: [id], onDelete: Restrict)
+  match             Match?            @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  season            Season?           @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  result            PredictionResult?
+
+  @@index([modelVersionId, predictedAt])
+  @@index([seasonId, predictedAt])
+  @@index([matchId])
+}
+
+model PredictionResult {
+  id              String     @id @default(uuid()) @db.Uuid
+  predictionId    String     @unique @db.Uuid
+  actualOutcome   String     @db.VarChar(32)
+  actualHomeGoals Int?
+  actualAwayGoals Int?
+  correct         Boolean?
+  evaluatedAt     DateTime   @default(now()) @db.Timestamptz(3)
+  prediction      Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
 }
 
 model SecurityEvent {
