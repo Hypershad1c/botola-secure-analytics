@@ -9,11 +9,15 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
 
-export const env = envSchema.parse({
-  NODE_ENV: process.env.NODE_ENV,
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  DATABASE_URL: process.env.DATABASE_URL,
-  AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET,
-  AUTH_COOKIE_NAME: process.env.AUTH_COOKIE_NAME,
-  LOG_LEVEL: process.env.LOG_LEVEL,
-});
+export type AppEnv = z.infer<typeof envSchema>;
+
+export function getEnv(): AppEnv {
+  return envSchema.parse({
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
+    AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET,
+    AUTH_COOKIE_NAME: process.env.AUTH_COOKIE_NAME,
+    LOG_LEVEL: process.env.LOG_LEVEL,
+  });
+}
