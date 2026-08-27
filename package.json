@@ -20,6 +20,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "import:fixture": "tsx scripts/import-fixture.ts",
     "import:promote": "tsx scripts/import-and-promote.ts",
+    "import:openfootball": "tsx scripts/import-openfootball.ts",
+    "import:elbotola": "tsx scripts/import-elbotola.ts",
     "ml:train": "tsx scripts/ml/train-baseline.ts",
     "jobs:worker:once": "tsx scripts/jobs/worker-once.ts",
     "db:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts",

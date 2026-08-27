@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { parseCsv, type CsvLimits } from "./csv";
 import { normalizeMatchRecord } from "./normalizer";
 import { validateAndClassify } from "./validator";
@@ -20,8 +19,20 @@ export type PipelineResult = {
 
 export function runMatchCsvPipeline(content: Buffer | string, options: PipelineOptions): PipelineResult {
   const body = typeof content === "string" ? Buffer.from(content, "utf8") : content;
-  const text = body.toString("utf8");
-  const rows = parseCsv(text, options.csvLimits);
+  const rows = parseCsv(body.toString("utf8"), options.csvLimits);
+  const sourceRecords: SourceRecord[] = rows.map((payload, index) => ({
+    sourceCode: options.sourceCode,
+    datasetName: options.datasetName,
+    datasetVersion: options.datasetVersion,
+    sourceRecordId: payload.id || undefined,
+    rowNumber: index + 2,
+    payload,
+  }));
+  return runMatchRecordsPipeline(sourceRecords, body, options);
+}
+
+export function runMatchRecordsPipeline(sourceRecords: SourceRecord[], content: Buffer | string, options: PipelineOptions): PipelineResult {
+  const body = typeof content === "string" ? Buffer.from(content, "utf8") : content;
   const seenSourceIds = new Set<string>();
   const seenFingerprints = new Map<string, { homeScore: number | null; awayScore: number | null }>();
   const records: ValidatedMatch[] = [];
@@ -30,15 +41,7 @@ export function runMatchCsvPipeline(content: Buffer | string, options: PipelineO
   let conflicts = 0;
   let warnings = 0;
 
-  rows.forEach((payload, index) => {
-    const sourceRecord: SourceRecord = {
-      sourceCode: options.sourceCode,
-      datasetName: options.datasetName,
-      datasetVersion: options.datasetVersion,
-      sourceRecordId: payload.id || undefined,
-      rowNumber: index + 2,
-      payload,
-    };
+  sourceRecords.forEach((sourceRecord) => {
     const normalized = normalizeMatchRecord(sourceRecord);
     const classified = validateAndClassify(sourceRecord, normalized, seenSourceIds);
     if (sourceRecord.sourceRecordId) seenSourceIds.add(sourceRecord.sourceRecordId);
@@ -65,11 +68,7 @@ export function runMatchCsvPipeline(content: Buffer | string, options: PipelineO
     sourceCode: options.sourceCode,
     datasetName: options.datasetName,
     datasetVersion: options.datasetVersion,
-    artifact: {
-      sha256: createHash("sha256").update(body).digest("hex"),
-      byteSize: body.byteLength,
-      contentType: options.contentType ?? "text/csv",
-    },
+    artifact: { sha256: createHash("sha256").update(body).digest("hex"), byteSize: body.byteLength, contentType: options.contentType ?? "text/csv" },
     recordsSeen: records.length,
     recordsAccepted: accepted,
     recordsRejected: rejected,

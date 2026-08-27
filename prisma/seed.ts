@@ -37,6 +37,8 @@ async function main() {
     { code: "footystats-dataset", name: "FootyStats historical datasets", kind: SourceKind.FOOTYSTATS_DATASET, priority: 10 },
     { code: "footystats-api", name: "FootyStats API", kind: SourceKind.FOOTYSTATS_API, priority: 20 },
     { code: "api-football", name: "API-Football", kind: SourceKind.API_FOOTBALL, priority: 30 },
+    { code: "openfootball-world", name: "openfootball public-domain results", kind: SourceKind.SYSTEM, priority: 35 },
+    { code: "elbotola-public", name: "Elbotola public match pages", kind: SourceKind.SYSTEM, priority: 36 },
     { code: "manual", name: "Manual correction", kind: SourceKind.MANUAL, priority: 40 },
   ];
   for (const source of sources) {
